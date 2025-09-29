@@ -17,7 +17,7 @@ class Args:
     train_file: str = field(default="data/train.jsonl")
     valid_file: str = field(default="data/valid.jsonl")
     output_dir: str = field(default="outputs/qwen2.5-lora-planner")
-    per_device_train_batch_size: int = field(default=1)
+    per_device_train_batch_size: int = field(default=3)
     per_device_eval_batch_size: int = field(default=1)
     gradient_accumulation_steps: int = field(default=8)
     num_train_epochs: int = field(default=3)
@@ -90,7 +90,7 @@ print("Loading model in 4-bit mode...")
 model = AutoModelForCausalLM.from_pretrained(
     cfg.model_name_or_path,
     quantization_config=bnb_config,
-    device_map= "auto",  # single GPU
+    device_map={"": 0},  # single GPU
     trust_remote_code=True,
 )
 
