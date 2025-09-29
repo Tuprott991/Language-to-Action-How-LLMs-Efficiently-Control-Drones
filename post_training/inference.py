@@ -5,7 +5,7 @@ import torch
 tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-7B-Instruct", trust_remote_code=True, use_fast=False)
 base = AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-7B-Instruct", device_map="auto", load_in_4bit=True, trust_remote_code=True,
                                            bnb_4bit_compute_dtype=torch.float16, bnb_4bit_use_double_quant=True)
-model = PeftModel.from_pretrained(base, "outputs/qwen2.5-lora-planner")
+model = PeftModel.from_pretrained(base, "outputs/qwen2.5-lora-planner/checkpoint-552")
 prompt = "Hello who are you?"
 inputs = tokenizer(prompt, return_tensors="pt", return_attention_mask=True)
 input_ids = inputs.input_ids.to(model.device)
