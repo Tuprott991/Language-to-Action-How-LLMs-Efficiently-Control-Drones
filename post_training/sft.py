@@ -132,7 +132,7 @@ def main():
         fp16=cfg.fp16,
         logging_steps=cfg.logging_steps,
         save_steps=cfg.save_steps,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
         eval_steps=cfg.save_steps,
         save_total_limit=3,
         weight_decay=cfg.weight_decay,
