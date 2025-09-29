@@ -22,6 +22,10 @@ model = PeftModel.from_pretrained(base, "outputs/qwen2.5-lora-planner/checkpoint
 
 model.eval()  # set to eval mode
 
+for name, param in model.named_parameters():
+    if param.requires_grad:
+        print(name, param.norm())
+
 # test generation
 while True:
     prompt = input("Enter your prompt: ")
@@ -32,9 +36,7 @@ while True:
     out = model.generate(
         **inputs,
         max_new_tokens=200,
-        do_sample=True,
-        temperature=0.7,
-        top_p=0.9   
+        do_sample=False
     )
 
     generated_ids = out[0][inputs['input_ids'].shape[1]:]
