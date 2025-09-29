@@ -10,7 +10,8 @@ prompt = "Hello who are you?"
 inputs = tokenizer(prompt, return_tensors="pt", return_attention_mask=True)
 input_ids = inputs.input_ids.to(model.device)
 attention_mask = inputs.attention_mask.to(model.device)
+
 out = model.generate(input_ids, attention_mask=attention_mask, max_new_tokens=200, do_sample=False, temperature=0.0)
-result = tokenizer.decode(out[0], skip_special_tokens=True)
-print(result[len(prompt):].strip())
-#asd
+generated_ids = out[0][input_ids.shape[1]:]  # skip prompt tokens
+result = tokenizer.decode(generated_ids, skip_special_tokens=True)
+print(result)
