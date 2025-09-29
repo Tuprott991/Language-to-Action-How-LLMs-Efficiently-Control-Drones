@@ -137,7 +137,7 @@ training_args = TrainingArguments(
 num_train_samples = int(0.25 * len(tokenized_datasets["train"]))
 train_subset = tokenized_datasets["train"].select(range(num_train_samples))
 
-num_eval_samples = min(0.4 * len(tokenized_datasets["validation"]))
+num_eval_samples = int(0.4 * len(tokenized_datasets["validation"]))
 eval_subset = tokenized_datasets["validation"].select(range(int(num_eval_samples)))
 
 trainer = Trainer(
