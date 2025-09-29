@@ -139,7 +139,6 @@ trainer = Trainer(
     train_dataset=tokenized_datasets["train"],
     eval_dataset=tokenized_datasets["validation"],
     tokenizer=tokenizer,
-    label_names=["labels"],
 )
 
 # ---------------------------
