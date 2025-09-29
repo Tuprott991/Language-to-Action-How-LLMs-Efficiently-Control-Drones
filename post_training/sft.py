@@ -14,7 +14,7 @@ import argparse
 
 @dataclass
 class Args:
-    model_name_or_path: str = field(default="Qwen/Qwen-2.5-7b-instruct")
+    model_name_or_path: str = field(default="Qwen/Qwen2.5-7B-Instruct")
     train_file: str = field(default="data/train.jsonl")
     valid_file: str = field(default="data/valid.jsonl")
     output_dir: str = field(default="outputs/qwen2.5-lora-planner")
