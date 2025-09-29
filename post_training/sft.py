@@ -1,5 +1,4 @@
 # train_qwen_lora.py
-import os
 import torch
 from dataclasses import dataclass, field
 from transformers import (
@@ -7,10 +6,10 @@ from transformers import (
     AutoModelForCausalLM,
     Trainer,
     TrainingArguments,
+    BitsAndBytesConfig,
 )
 from datasets import load_dataset
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-from transformers import BitsAndBytesConfig
 
 @dataclass
 class Args:
@@ -50,8 +49,8 @@ raw_datasets = load_dataset("json", data_files=data_files)
 # Preprocess function
 # ---------------------------
 def preprocess_function(example):
-    # Concatenate instruction + planner as model input
-    input_text = example["instruction"] + "\nPlanner: " + example["planner"]
+    # Input is the prompt
+    input_text = example["prompt"]
     model_input = tokenizer(
         input_text,
         max_length=cfg.max_length,
@@ -59,10 +58,10 @@ def preprocess_function(example):
         padding="max_length",
     )
 
-    # Tokenize output separately as labels
+    # Output is the response
     with tokenizer.as_target_tokenizer():
         labels = tokenizer(
-            example["output"],
+            example["response"],
             max_length=cfg.max_length,
             truncation=True,
             padding="max_length",
@@ -91,7 +90,7 @@ print("Loading model in 4-bit mode...")
 model = AutoModelForCausalLM.from_pretrained(
     cfg.model_name_or_path,
     quantization_config=bnb_config,
-    device_map={"": 0},  # Force single GPU
+    device_map={"": 0},  # single GPU
     trust_remote_code=True,
 )
 
@@ -123,7 +122,7 @@ training_args = TrainingArguments(
     fp16=cfg.fp16,
     logging_steps=50,
     save_steps=500,
-    evaluation_strategy="steps",
+    eval_strategy="steps",
     eval_steps=500,
     save_total_limit=3,
     report_to="none",
@@ -140,7 +139,7 @@ trainer = Trainer(
     train_dataset=tokenized_datasets["train"],
     eval_dataset=tokenized_datasets["validation"],
     tokenizer=tokenizer,
-    label_names=["labels"],  # ensure labels are moved to GPU correctly
+    label_names=["labels"],
 )
 
 # ---------------------------
