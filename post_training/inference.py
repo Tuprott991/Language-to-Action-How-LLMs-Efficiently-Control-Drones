@@ -11,6 +11,8 @@ prompt = "You are a drone flight planner. Given the start, goal, grid shape, and
             "Start: [0, 0, 0]\n" \
             "Goal: [9, 9, 2]\n" \
             "No-fly zones: [[1, 1, 0], [1, 1, 1], [1, 1, 2]]\n"
-input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
-out = model.generate(input_ids, max_new_tokens=200, do_sample=False, temperature=0.0)
+inputs = tokenizer(prompt, return_tensors="pt", return_attention_mask=True)
+input_ids = inputs.input_ids.to(model.device)
+attention_mask = inputs.attention_mask.to(model.device)
+out = model.generate(input_ids, attention_mask=attention_mask, max_new_tokens=200, do_sample=False, temperature=0.0)
 print(tokenizer.decode(out[0], skip_special_tokens=True))
