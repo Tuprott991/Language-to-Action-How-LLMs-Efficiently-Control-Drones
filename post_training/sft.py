@@ -90,7 +90,7 @@ print("Loading model in 4-bit mode...")
 model = AutoModelForCausalLM.from_pretrained(
     cfg.model_name_or_path,
     quantization_config=bnb_config,
-    device_map={"": 0},  # single GPU
+    device_map= "auto",  # single GPU
     trust_remote_code=True,
 )
 
