@@ -20,7 +20,7 @@ class Args:
     per_device_train_batch_size: int = field(default=3)
     per_device_eval_batch_size: int = field(default=1)
     gradient_accumulation_steps: int = field(default=8)
-    num_train_epochs: int = field(default=3)
+    num_train_epochs: int = field(default=2)
     learning_rate: float = field(default=2e-4)
     max_length: int = field(default=512)
     lora_r: int = field(default=16)
@@ -133,13 +133,18 @@ training_args = TrainingArguments(
 # ---------------------------
 # Trainer
 # ---------------------------
+
+num_train_samples = int(0.2 * len(tokenized_datasets["train"]))
+train_subset = tokenized_datasets["train"].select(range(num_train_samples))
+
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=tokenized_datasets["train"],
+    train_dataset=train_subset,
     eval_dataset=tokenized_datasets["validation"],
     tokenizer=tokenizer,
 )
+
 
 # ---------------------------
 # Train
