@@ -19,7 +19,10 @@ base_model = AutoModelForCausalLM.from_pretrained(
 model = PeftModel.from_pretrained(base_model, lora_path, torch_dtype=torch.float16)
 
 # Merge LoRA for inference
-model = model.merge_and_unload()
+model = model.merge_and_unload().to("cuda")
+model.eval()  # set to eval mode
+
+
 
 # Inference function
 def generate(prompt, max_tokens=235):
