@@ -17,3 +17,4 @@ attention_mask = inputs.attention_mask.to(model.device)
 out = model.generate(input_ids, attention_mask=attention_mask, max_new_tokens=200, do_sample=False, temperature=0.0)
 result = tokenizer.decode(out[0], skip_special_tokens=True)
 print(result[len(prompt):].strip())
+#asd
