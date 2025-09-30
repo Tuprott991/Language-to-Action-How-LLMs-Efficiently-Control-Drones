@@ -1,10 +1,12 @@
+# interpreter.py - Compatible with gym-pybullet-drones
+
 import re
 import numpy as np
 import time
 from gym_pybullet_drones.utils.enums import DroneModel, Physics, ActionType
 
 class DroneInterpreter:
-    def __init__(self, env, grid_shape=(10, 10, 3), cell_size=1.0, control_freq=30):
+    def __init__(self, env, grid_shape=(10, 10, 3), cell_size=0.03, control_freq=30):
         """
         env: gym_pybullet_drones environment instance
         grid_shape: (x_cells, y_cells, z_cells)
@@ -17,7 +19,18 @@ class DroneInterpreter:
         self.control_freq = control_freq
         
         # Detect action type from environment
-        self.action_type = env.ACT_TYPE if hasattr(env, 'ACT_TYPE') else ActionType.PID
+        # CtrlAviary uses PID, VelocityAviary uses VEL, etc.
+        if hasattr(env, 'ACT_TYPE'):
+            self.action_type = env.ACT_TYPE
+        else:
+            # Default based on class name
+            env_class_name = env.__class__.__name__
+            if 'Velocity' in env_class_name:
+                self.action_type = ActionType.VEL
+            elif 'RPM' in env_class_name:
+                self.action_type = ActionType.RPM
+            else:
+                self.action_type = ActionType.PID  # Default for CtrlAviary
         
         self.partial_buffer = ""
         self.planned_actions = []
@@ -166,59 +179,118 @@ class DroneInterpreter:
 
     def _get_current_state(self):
         """Get current drone state from environment."""
-        # gym-pybullet-drones stores state differently based on num_drones
-        if hasattr(self.env, '_getDroneStateVector'):
-            state = self.env._getDroneStateVector(0)
-            pos = state[0:3]
-            vel = state[10:13]
-        else:
-            # Fallback: try to get from observation
-            obs = self.env._computeObs() if hasattr(self.env, '_computeObs') else None
-            if obs is not None and len(obs) >= 3:
-                pos = obs[0:3]
-                vel = obs[3:6] if len(obs) >= 6 else np.zeros(3)
-            else:
-                raise RuntimeError("Cannot get drone state from environment")
+        try:
+            # Method 1: Try _getDroneStateVector (most direct)
+            if hasattr(self.env, '_getDroneStateVector'):
+                state = self.env._getDroneStateVector(0)
+                pos = state[0:3]
+                vel = state[10:13]
+                return pos, vel
+        except Exception as e:
+            pass
         
-        return pos, vel
+        try:
+            # Method 2: Try getting from last observation
+            if hasattr(self.env, '_computeObs'):
+                obs = self.env._computeObs()
+                # CtrlAviary returns dict with single key
+                if isinstance(obs, dict):
+                    # Get first (and only) drone's observation
+                    obs_array = obs[0] if 0 in obs else list(obs.values())[0]
+                else:
+                    obs_array = obs
+                
+                # Flatten if needed
+                if isinstance(obs_array, np.ndarray):
+                    obs_flat = obs_array.flatten()
+                    pos = obs_flat[0:3]
+                    vel = obs_flat[3:6] if len(obs_flat) >= 6 else np.zeros(3)
+                    return pos, vel
+        except Exception as e:
+            pass
+        
+        # Method 3: Access PyBullet directly
+        try:
+            import pybullet as p
+            drone_id = self.env.DRONE_IDS[0]
+            pos, _ = p.getBasePositionAndOrientation(drone_id)
+            vel, _ = p.getBaseVelocity(drone_id)
+            return np.array(pos), np.array(vel)
+        except Exception as e:
+            raise RuntimeError(f"Cannot get drone state from environment: {e}")
 
     def _compute_control_action(self, target_pos, target_vel=np.zeros(3)):
         """
-        Compute control action based on action type.
-        Implements a simple position controller.
+        Compute control action for CtrlAviary.
+        CtrlAviary uses DSLPIDControl which needs RPM commands computed from state.
         """
         current_pos, current_vel = self._get_current_state()
         
-        # Position error
-        pos_error = target_pos - current_pos
-        
-        # Velocity error
-        vel_error = target_vel - current_vel
-        
         if self.action_type == ActionType.PID:
-            # PID action: [vx, vy, vz, yaw_rate]
-            desired_vel = self.Kp * pos_error + self.Kd * vel_error
-            # Clip velocity
-            max_vel = 2.0  # m/s
-            desired_vel = np.clip(desired_vel, -max_vel, max_vel)
-            action = np.array([desired_vel[0], desired_vel[1], desired_vel[2], 0.0])
-            
+            # Use the environment's built-in controller
+            # We need to call the controller directly
+            if hasattr(self.env, 'ctrl'):
+                # Get RPMs from the controller
+                rpm, _, _ = self.env.ctrl[0].computeControlFromState(
+                    control_timestep=self.env.CTRL_TIMESTEP,
+                    state=self.env._getDroneStateVector(0),
+                    target_pos=target_pos,
+                    target_rpy=np.array([0, 0, 0]),  # level flight
+                    target_vel=target_vel,
+                    target_rpy_rates=np.array([0, 0, 0])
+                )
+                return rpm
+            else:
+                # Fallback: manual computation
+                # This is a simple PD controller that outputs "thrust"
+                pos_error = target_pos - current_pos
+                vel_error = target_vel - current_vel
+                
+                # Proportional-Derivative control
+                desired_acc = self.Kp * pos_error + self.Kd * vel_error
+                
+                # Convert acceleration to "normalized thrust" (0 to 1)
+                # Gravity compensation + desired acceleration
+                gravity = 9.81
+                mass = 0.027  # kg (CF2X mass)
+                total_thrust = mass * (gravity + desired_acc[2])
+                
+                # Normalize and convert to RPM-like values
+                # CtrlAviary expects something that gets clipped to [0, MAX_RPM]
+                hover_rpm = 10000  # approximate hover RPM
+                thrust_to_rpm = hover_rpm / (mass * gravity)
+                
+                base_rpm = total_thrust * thrust_to_rpm
+                
+                # Simple attitude control for x,y
+                max_tilt = 0.3  # max tilt in radians
+                roll = np.clip(desired_acc[1] / gravity, -max_tilt, max_tilt)
+                pitch = np.clip(-desired_acc[0] / gravity, -max_tilt, max_tilt)
+                
+                # Distribute to 4 motors (very simplified)
+                rpm = np.array([
+                    base_rpm * (1 + pitch - roll),
+                    base_rpm * (1 + pitch + roll),
+                    base_rpm * (1 - pitch + roll),
+                    base_rpm * (1 - pitch - roll)
+                ])
+                
+                rpm = np.clip(rpm, 0, 20000)
+                return rpm
+                
         elif self.action_type == ActionType.VEL:
-            # VEL action: [vx, vy, vz]
-            desired_vel = self.Kp * pos_error + self.Kd * vel_error
+            pos_error = target_pos - current_pos
+            desired_vel = self.Kp * pos_error
             max_vel = 2.0
             action = np.clip(desired_vel, -max_vel, max_vel)
+            return action
             
         elif self.action_type == ActionType.RPM:
-            # RPM control is more complex, would need proper controller
-            # For now, return hover RPMs
             action = np.array([10000, 10000, 10000, 10000])
-            print("Warning: RPM control not fully implemented")
+            return action
             
         else:
             raise ValueError(f"Unsupported action type: {self.action_type}")
-        
-        return action
 
     def _cmd_takeoff(self, altitude: float):
         """Takeoff to specified altitude."""
@@ -252,35 +324,52 @@ class DroneInterpreter:
         except Exception as e:
             print(f"  Error in landing: {e}")
 
-    def _move_to_target(self, target_pos: np.ndarray, tolerance: float = 0.1, max_steps: int = 300):
+    def _move_to_target(self, target_pos: np.ndarray, tolerance: float = 0.15, max_steps: int = 500):
         """
         Move to target position using gym-pybullet-drones step function.
         """
+        reached_count = 0  # Count consecutive steps within tolerance
+        required_count = 10  # Need to be stable for 10 steps
+        
         for step in range(max_steps):
             current_pos, _ = self._get_current_state()
             
             # Check if reached
             distance = np.linalg.norm(current_pos - target_pos)
             if distance < tolerance:
-                print(f"    Reached target (distance: {distance:.3f}m)")
-                break
+                reached_count += 1
+                if reached_count >= required_count:
+                    print(f"    Reached target (distance: {distance:.3f}m)")
+                    break
+            else:
+                reached_count = 0
             
             # Compute control action
             action = self._compute_control_action(target_pos)
             
+            # CtrlAviary expects 2D array: (NUM_DRONES, 4)
+            action_array = np.array([action])  # Shape: (1, 4)
+            
             # Step environment
             try:
-                # Try new Gymnasium API first
-                result = self.env.step(action)
+                result = self.env.step(action_array)
+                
+                # Handle different return formats
                 if len(result) == 5:
                     obs, reward, terminated, truncated, info = result
                     done = terminated or truncated
-                else:
+                elif len(result) == 4:
                     obs, reward, done, info = result
+                else:
+                    raise ValueError(f"Unexpected step return length: {len(result)}")
                 
-                # Render if available
+                # Render for visualization
                 if hasattr(self.env, 'render'):
                     self.env.render()
+                
+                # Add small delay for real-time visualization
+                import time
+                time.sleep(0.01)
                     
                 if done:
                     print("    Environment episode ended")
@@ -288,6 +377,8 @@ class DroneInterpreter:
                     
             except Exception as e:
                 print(f"    Step error: {e}")
+                import traceback
+                traceback.print_exc()
                 break
         else:
             current_pos, _ = self._get_current_state()
