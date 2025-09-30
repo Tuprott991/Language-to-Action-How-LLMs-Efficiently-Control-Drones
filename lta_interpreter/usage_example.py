@@ -1,7 +1,3 @@
-"""
-Example usage with gym-pybullet-drones
-"""
-
 from gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
 from gym_pybullet_drones.utils.enums import DroneModel, Physics, ActionType
 from interpreter import DroneInterpreter
@@ -153,7 +149,7 @@ if __name__ == "__main__":
     Head from (0, 0, 0) to (5, 5, 2).
     Grid shape: [10, 10, 3]
     No-fly zones: No-fly zone at (3,3) (all altitudes)
-    Produce the low-level action plan (one-line) as the output.
+    Produce the plan at one-line.
     """
     
     plan = llm_plan_and_execute(env, interpreter, task)

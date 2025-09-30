@@ -1,5 +1,3 @@
-# interpreter.py - Compatible with gym-pybullet-drones
-
 import re
 import numpy as np
 import time
