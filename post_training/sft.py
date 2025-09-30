@@ -28,6 +28,7 @@ class Args:
     lora_dropout: float = field(default=0.05)
     fp16: bool = field(default=True)
     seed: int = field(default=42)
+    resume_from_checkpoint: str = field(default=None) 
 
 cfg = Args()
 torch.manual_seed(cfg.seed)
@@ -152,6 +153,6 @@ trainer = Trainer(
 # ---------------------------
 # Train
 # ---------------------------
-trainer.train()
+trainer.train(resume_from_checkpoint=cfg.resume_from_checkpoint)
 trainer.save_model(cfg.output_dir)
 tokenizer.save_pretrained(cfg.output_dir)
