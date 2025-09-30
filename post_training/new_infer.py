@@ -28,7 +28,7 @@ base = AutoModelForCausalLM.from_pretrained(
 
 # Load LoRA adapter
 print("Loading LoRA adapter...")
-model = PeftModel.from_pretrained(base, "outputs_2/qwen2.5-lora-planner")
+model = PeftModel.from_pretrained(base, "outputs_3/qwen2.5-lora-planner")
 model.eval()
 
 print("\nModel loaded successfully!")
