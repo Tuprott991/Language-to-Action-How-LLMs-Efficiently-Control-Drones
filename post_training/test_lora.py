@@ -24,7 +24,7 @@ base_model = AutoModelForCausalLM.from_pretrained(
 base_model = prepare_model_for_kbit_training(base_model)
 
 # 4️⃣ Load LoRA
-lora_path = r"outputs/qwen2.5-lora-planner/checkpoint-552"
+lora_path = r"outputs/qwen2.5-lora-planner"
 model = PeftModel.from_pretrained(base_model, lora_path, torch_dtype=torch.float16)
 
 # 5️⃣ Verify LoRA

@@ -18,7 +18,7 @@ base = AutoModelForCausalLM.from_pretrained(
 base = prepare_model_for_kbit_training(base)  # important
 
 # load LoRA
-model = PeftModel.from_pretrained(base, "outputs/qwen2.5-lora-planner/checkpoint-552")
+model = PeftModel.from_pretrained(base, "outputs/qwen2.5-lora-planner")
 
 model.eval()  # set to eval mode
 
