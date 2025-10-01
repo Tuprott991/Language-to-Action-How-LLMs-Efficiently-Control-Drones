@@ -46,11 +46,11 @@ This project explores how Large Language Models (LLMs) can be leveraged to effic
   ```
 - Train a model:
   ```powershell
-  python post_training/sft.py
+  python post_training/new_sft.py
   ```
 - Run inference:
   ```powershell
-  python post_training/lora_infer.py
+  python post_training/new_infer.py
   ```
 
 ## Acknowledgements
