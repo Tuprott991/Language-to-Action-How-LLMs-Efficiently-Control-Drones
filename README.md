@@ -2,6 +2,9 @@
 
 This project explores how Large Language Models (LLMs) can be leveraged to efficiently control drones through natural languages. It provides a modular framework for data generation, simulation, training, and inference, enabling research and development in language-driven drone control.
 
+## Model
+- [Qwen2.5-7B-Drone](https://huggingface.co/Vantuk/Qwen2.5-7B-Drone) — My Pretrained LLM for drone control tasks.
+
 ![Alt text](framework.png)
 
 ## Features
